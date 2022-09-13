@@ -125,6 +125,43 @@ def COVID_PATIENT_COMORBIDITIES(pf_clean, our_concept_sets, condition_occurrence
     
 
 @transform_pandas(
+    Output(rid="ri.vector.main.execute.492ba54f-80b4-4460-9d77-21d295b014d6"),
+    pf_mds=Input(rid="ri.vector.main.execute.a901890b-b30a-43e9-8e0c-647458be539a")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-08-31
+
+Description:
+This should always precede the COVID_POS_PERSON_FACT node. 
+
+Input:
+The preceding patient table in the code workbook.
+================================================================================
+"""
+def COVID_PATIENT_SDOH(pf_mds):
+
+    df = (
+        pf_mds
+        .withColumn("African_American",F.col('African_American').cast('double'))       
+        .withColumn('AIAN',F.col('AIAN').cast('double'))
+        .withColumn('Asian',F.col('Asian').cast('double'))
+        .withColumn('NHPI',F.col('NHPI').cast('double'))
+        .withColumn('White',F.col('White').cast('double'))
+        .withColumn('other_race',F.col('other_race').cast('double'))
+        .withColumn('two_or_more_races',F.col('two_or_more_races').cast('double'))
+        .withColumn('Hispanic_any_race',F.col('Hispanic_any_race').cast('double'))
+        .withColumn('male',F.col('male').cast('double'))
+        .withColumn('female',F.col('female').cast('double'))
+        .withColumn('age_18_and_under',F.col('age_18_and_under').cast('double'))
+        .withColumn('age_18_and_over',F.col('age_18_and_over').cast('double'))
+        .withColumn('age_65plus',F.col('age_65plus').cast('double'))
+    ) 
+    
+    return df
+
+@transform_pandas(
     Output(rid="ri.vector.main.execute.3cf53c18-1a89-43d4-98b0-a45b6b660b1c"),
     pf_death=Input(rid="ri.vector.main.execute.9ecdced1-c3b3-4f1a-9b20-10bb4b1701de")
 )
@@ -968,6 +1005,21 @@ def successive_macrovisits(microvisit_to_macrovisit_lds):
 
     return df
     
+
+@transform_pandas(
+    Output(rid="ri.vector.main.execute.55d585f2-c56f-49e3-a61a-7f62ad3f14eb"),
+    COVID_POS_PERSON_FACT=Input(rid="ri.vector.main.execute.3cf53c18-1a89-43d4-98b0-a45b6b660b1c")
+)
+def unique_zip_count(COVID_POS_PERSON_FACT):
+
+    df = (
+        COVID_POS_PERSON_FACT
+        .groupBy('zip_code')
+        .count()
+        #.where(F.col('count') >= 15)
+    )
+
+    return df
 
 @transform_pandas(
     Output(rid="ri.vector.main.execute.e9902478-9e87-46eb-9af4-ed9adeaf055e"),

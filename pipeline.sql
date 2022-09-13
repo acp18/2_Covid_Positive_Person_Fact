@@ -9,6 +9,14 @@ SELECT ZCTA_by_SDoH_percentages.*,ZiptoZcta_Crosswalk_2021_ziptozcta2020.ZIP_COD
 FROM ZCTA_by_SDoH_percentages JOIN ZiptoZcta_Crosswalk_2021_ziptozcta2020 on ZCTA_by_SDoH_percentages.ZCTA=ZiptoZcta_Crosswalk_2021_ziptozcta2020.ZCTA
 
 @transform_pandas(
+    Output(rid="ri.vector.main.execute.483c862b-c188-41ac-afac-3675e0f7b17c"),
+    pf_sdoh=Input(rid="ri.vector.main.execute.0aaeb9e0-f764-4186-b558-6ded1d772aca")
+)
+SELECT distinct city,state,zip,ZCTA
+FROM pf_sdoh
+where ZCTA IS NULL
+
+@transform_pandas(
     Output(rid="ri.vector.main.execute.a901890b-b30a-43e9-8e0c-647458be539a"),
     LOGIC_LIAISON_Covid_19_Patient_Summary_Facts_Table_LDS_=Input(rid="ri.foundry.main.dataset.75d7da57-7b0e-462c-b41d-c9ef4f756198"),
     pf_sdoh=Input(rid="ri.vector.main.execute.0aaeb9e0-f764-4186-b558-6ded1d772aca")
