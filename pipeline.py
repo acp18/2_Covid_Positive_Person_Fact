@@ -2,6 +2,129 @@ from pyspark.sql.window import Window
 from pyspark.sql import functions as F
 
 @transform_pandas(
+    Output(rid="ri.vector.main.execute.84d406f4-ceb5-41ba-8635-329be026e241"),
+    concept_set_members=Input(rid="ri.foundry.main.dataset.e670c5ad-42ca-46a2-ae55-e917e3e161b6"),
+    condition_occurrence=Input(rid="ri.foundry.main.dataset.900fa2ad-87ea-4285-be30-c6b5bab60e86"),
+    our_concept_sets=Input(rid="ri.foundry.main.dataset.f80a92e0-cdc4-48d9-b4b7-42e60d42d9e0"),
+    pf_clean=Input(rid="ri.vector.main.execute.a99e14c1-2c50-48c3-a2d8-a251c03f3fac")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-08-30
+
+Description:
+Result table contains one row per patient with recorded comorbidities with the 
+following two sets of comorbidity columns:
+    - columns that contain the first recorded date of the comorbidity condition
+    - columns that contain the condition_occurrence_id of the record in the 
+      condition_occurrence table for the first recorded date 
+
+The comorbidity concept names are retrieved from the our_concept_sets table 
+and added as columns to the result table. If a patient has a comorbidity, the
+earliest comorbidity start date is recorded in the comorbidity column.
+
+Notes:
+- Comorbidities (from condition_occurrence) with null condition_start_date 
+  values are dropped
+
+Input:
+
+pf_clean:
+The preceding patient table in the code workbook.
+
+our_concept_sets:
+This table is built from a manually built spreadsheet (a Palantir Foundrey 
+"Fusion Table"), and contains concept_set_members for the comorbidities of 
+interest. 
+
+concept_set_members:
+Used to find most recent concept_id values for the comorbidity concept_set_names
+in our_concept_sets
+
+condition_occurrence:
+Details of all patients conditions.
+================================================================================
+"""
+def COVID_PATIENT_COMORBIDITIES(pf_clean, our_concept_sets, condition_occurrence, concept_set_members):
+    
+    pf_covid_date_df = pf_clean.select('person_id', 'first_pos_pcr_antigen_date')
+    
+
+    # Get comorbidity concept_set_name values from our list 
+    comorbidity_concept_names_df = (
+        our_concept_sets
+            .filter(our_concept_sets.domain.contains('condition_occurrence'))
+            .filter(our_concept_sets.comorbidity == 1)
+            .select('concept_set_name','column_name')
+    )
+
+    # Get most recent version of comorbidity concept_id values from concept_set_members 
+    comorbidity_concept_set_members_df = (
+        concept_set_members
+            .select('concept_id','is_most_recent_version','concept_set_name')
+            .where(F.col('is_most_recent_version') == 'true')
+            .join(comorbidity_concept_names_df, 'concept_set_name', 'inner')
+            .select('concept_id','column_name')
+    )
+
+    """ 
+    Get all conditions for current set of Covid+ patients    
+    where the condition_start_date is not null
+    """
+    person_conditions_df = (
+        condition_occurrence 
+            .select('person_id'                 , 
+                    'condition_start_date'      , 
+                    'condition_concept_id'      , 
+                    'condition_occurrence_id'   , 
+                    'condition_source_value'    )  
+            .where(F.col('condition_start_date').isNotNull()) 
+            .withColumnRenamed('condition_concept_id','concept_id') # renamed for next join
+            .join(pf_covid_date_df,'person_id','inner')
+    )
+
+    # Subset person_conditions_df to records with comorbidities
+    person_comorbidities_df = (
+        person_conditions_df
+            .join(comorbidity_concept_set_members_df, 'concept_id', 'inner')
+            .withColumnRenamed('condition_start_date','comorbidity_start_date')
+            .withColumnRenamed('column_name','comorbidity')
+            .select('person_id'                     , 
+                    'comorbidity'                   ,
+                    'comorbidity_start_date'        , 
+                    'first_pos_pcr_antigen_date'    , 
+                    'condition_occurrence_id'       , 
+                    'condition_source_value'        )
+    ) 
+
+    # Only keep the record with the earliest comorbidity_start_date
+    w = Window.partitionBy('person_id', 'comorbidity').orderBy('comorbidity_start_date')
+    earliest_comorbidity_df = (
+        person_comorbidities_df
+        .withColumn('comorbidity_start_date'    , F.first('comorbidity_start_date').over(w)     )
+        .withColumn('first_pos_pcr_antigen_date', F.first('first_pos_pcr_antigen_date').over(w) )  
+        .withColumn('condition_occurrence_id'   , F.first('condition_occurrence_id').over(w)    )  
+        .withColumn('condition_source_value'    , F.first('condition_source_value').over(w)     ) 
+    ).dropDuplicates()
+
+    # Transpose the comorbidity value to the following two columns:
+    # - a column and with comorbidity_start_date values
+    # - a column with corresponding condition_occurrence_id values 
+    # Note: F.first() works because there is only one date per person per comorbidity 
+    person_comorbidity_start_df = (
+        earliest_comorbidity_df
+            .groupby('person_id')
+            .pivot('comorbidity')
+            .agg(F.first('comorbidity_start_date').alias('start')       ,
+                 F.first('condition_occurrence_id').alias('c_occ_id')   )
+    )
+
+    return person_comorbidity_start_df
+
+    
+
+@transform_pandas(
     Output(rid="ri.vector.main.execute.26952395-170f-4408-b142-dd4128c9001b"),
     microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905")
 )
@@ -511,6 +634,152 @@ def pf_covid_visits_dep():
     return pf_first_visits_df
 
 @transform_pandas(
+    Output(rid="ri.vector.main.execute.9ecdced1-c3b3-4f1a-9b20-10bb4b1701de"),
+    death=Input(rid="ri.foundry.main.dataset.d8cc2ad4-215e-4b5d-bc80-80ffb3454875"),
+    pf_first_covid_hosp=Input(rid="ri.vector.main.execute.32beaa5c-f3f8-4335-981c-e654c9d0478b")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-06-12
+
+Description:
+Joins in death records. 
+
+Note: 
+Some patients have multiple death records, each with different causes of 
+death. In these circumstances, and in the event there are conflicting
+death_date values, the latest death_date value is chosen. 
+
+Input:
+
+Output:
+================================================================================
+"""
+def pf_death(pf_first_covid_hosp, death):
+
+    #  Subset columns
+    deaths_df = death.select('person_id', 'death_date')
+
+    pf_deaths = (
+        pf_first_covid_hosp
+        .select('person_id')
+        .join(deaths_df, 'person_id', 'inner')
+        .dropDuplicates()
+    )
+    
+    # Order by macrovisit_id, poslab_date
+    w = (
+        Window
+        .partitionBy('person_id')
+        .orderBy('death_date')
+        .rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+    )
+
+    # In the event that there are multiple death_date values, the latest death_date is chosen
+    pf_last_death_date = (
+        pf_deaths
+        .select('person_id'                                     ,
+                F.last('death_date').over(w).alias('d_date')    )
+        .withColumnRenamed('d_date', 'death_date')        
+    )
+
+    # Joins in patient data and creates death_recorded flag
+    df = (
+        pf_first_covid_hosp
+        .join(pf_last_death_date, 'person_id', 'left')
+        .withColumn('death_recorded', 
+                    F.when(F.col('death_date').isNotNull(), F.lit(1))
+                    .otherwise(0)
+        )
+    )
+
+    return df
+
+    
+
+@transform_pandas(
+    Output(rid="ri.vector.main.execute.32beaa5c-f3f8-4335-981c-e654c9d0478b"),
+    concept_set_members=Input(rid="ri.foundry.main.dataset.e670c5ad-42ca-46a2-ae55-e917e3e161b6"),
+    microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905"),
+    our_concept_sets=Input(rid="ri.foundry.main.dataset.f80a92e0-cdc4-48d9-b4b7-42e60d42d9e0"),
+    pf_clean=Input(rid="ri.vector.main.execute.a99e14c1-2c50-48c3-a2d8-a251c03f3fac")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-06-01
+
+Description:
+Adds hospitalization start and end dates and optionally Emergency Room visit 
+dates. (To get both sets of dates, set get_er_and_hosp_visits == True)  
+================================================================================ 
+"""
+def pf_first_covid_hosp( microvisit_to_macrovisit_lds, our_concept_sets, concept_set_members, pf_clean):
+
+    """
+    ================================================================================
+    Potential Parameters 
+    --------------------
+    days_after_visit_start_date / days_before_visit_start_date (int)
+    Proximity in days between index date(s) and visit date 
+    ================================================================================ 
+    """
+
+    days_after_visit_start_date         = 1
+    days_before_visit_start_date        = 16
+
+    # Subset to macrovisits only (hospitalizations)
+    hospitalizations_only_df = (
+        microvisit_to_macrovisit_lds
+        .select('person_id', 'macrovisit_id', 'macrovisit_start_date', 'macrovisit_end_date')
+        .where(F.col('macrovisit_id').isNotNull())
+    ).dropDuplicates()
+
+    # only need these columns for join
+    pf_poslab_df = pf_clean.select('person_id', 'first_pos_pcr_antigen_date')
+
+    # COVID-associated hospitalizations
+    all_poslab_hosp_df = (
+        hospitalizations_only_df
+        .join(pf_poslab_df, 'person_id', 'left')
+        .where( (F.col('macrovisit_start_date')         >= F.col('first_pos_pcr_antigen_date') - days_after_visit_start_date) & 
+                (F.col('macrovisit_start_date')         <= F.col('first_pos_pcr_antigen_date') + days_before_visit_start_date ) &
+                (F.col('first_pos_pcr_antigen_date')    <= F.col('macrovisit_end_date')                         ) )
+    )    
+  
+
+    # Order by person_id, macrovisit_start_date
+    w = Window.partitionBy('person_id').orderBy('macrovisit_start_date')
+
+    # Keep only first covid-associated hospitalization within range of first_pos_pcr_antigen_date
+    first_hosp_per_poslab_df = (
+        all_poslab_hosp_df
+        .select('person_id'                                                     ,
+                F.first('macrovisit_id').over(w).alias('md_id')                 ,
+                'first_pos_pcr_antigen_date'                                    ,
+                F.first('macrovisit_start_date').over(w).alias('start_date')    ,
+                F.first('macrovisit_end_date'  ).over(w).alias('end_date')      )
+        .dropDuplicates()
+        .withColumnRenamed('md_id'      , 'first_covid_macrovisit_id'           )        
+        .withColumnRenamed('start_date' , 'first_covid_macrovisit_start_date'   )
+        .withColumnRenamed('end_date'   , 'first_covid_macrovisit_end_date'     )        
+        #.withColumn('poslab_start_diff' ,  F.datediff(F.col('macrovisit_start_date'), F.col('first_pos_pcr_antigen_date')  ) )
+        #.withColumn('end_start_diff'    ,  F.datediff(F.col('macrovisit_end_date'), F.col('macrovisit_start_date')         ) )        
+    )
+
+    # Join  
+    df = (
+        pf_clean
+        .join(first_hosp_per_poslab_df.drop('first_pos_pcr_antigen_date'), 'person_id', 'left')
+        .withColumn('covid_associated_hosp', 
+                    F.when(F.col('first_covid_macrovisit_id').isNotNull(), F.lit(1) )
+                    .otherwise(0))
+    )
+
+    return df
+
+@transform_pandas(
     Output(rid="ri.vector.main.execute.0b59927d-f314-45a2-82c2-88308722eb0f"),
     location=Input(rid="ri.foundry.main.dataset.efac41e8-cc64-49bf-9007-d7e22a088318"),
     manifest=Input(rid="ri.foundry.main.dataset.b1e99f7f-5dcd-4503-985a-bbb28edc8f6f"),
@@ -615,5 +884,13 @@ def successive_macrovisits(microvisit_to_macrovisit_lds):
     ).sort('macrovisit_start_date')
 
     return df
+    
+
+@transform_pandas(
+    Output(rid="ri.vector.main.execute.e9902478-9e87-46eb-9af4-ed9adeaf055e"),
+    pf_locations=Input(rid="ri.vector.main.execute.0b59927d-f314-45a2-82c2-88308722eb0f")
+)
+def unique_zip_count_dirty(pf_locations):
+    return pf_locations.groupBy('zip').count()    
     
 
