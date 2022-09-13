@@ -2,6 +2,34 @@ from pyspark.sql.window import Window
 from pyspark.sql import functions as F
 
 @transform_pandas(
+    Output(rid="ri.vector.main.execute.26952395-170f-4408-b142-dd4128c9001b"),
+    microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905")
+)
+def explore_m_to_m(microvisit_to_macrovisit_lds):
+
+    # Counts of distinct dates within macrovisits --> looks like there are no variations
+    """
+    df = (
+        microvisit_to_macrovisit_lds
+        .select('person_id', 'visit_concept_id', 'visit_concept_name', 'macrovisit_id',  'macrovisit_start_date', 'macrovisit_end_date')
+        .where(F.col('macrovisit_id').isNotNull())
+        .groupby('macrovisit_id')
+        .agg(F.countDistinct(F.col('macrovisit_start_date')).alias('distinct_start_dates'))        
+    )
+    """
+
+    df = (
+        microvisit_to_macrovisit_lds
+        .select('person_id', 'visit_concept_id', 'visit_concept_name', 'macrovisit_id',  'macrovisit_start_date', 'macrovisit_end_date')
+        .where(F.col('macrovisit_id').isNotNull())
+        .where(F.col('visit_concept_id') == 9201)        
+        .groupby('macrovisit_id')
+        .agg(F.count(F.col('visit_concept_id')).alias('multi_inpatient_codes'))        
+    ) 
+       
+    return df
+
+@transform_pandas(
     Output(rid="ri.vector.main.execute.a517adaf-9a91-4b6c-ab22-28a537e81890"),
     microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905")
 )
@@ -89,6 +117,159 @@ def pf_after_covid_visits():
 
     return df
     
+
+@transform_pandas(
+    Output(rid="ri.vector.main.execute.a99e14c1-2c50-48c3-a2d8-a251c03f3fac"),
+    pf_locations=Input(rid="ri.vector.main.execute.0b59927d-f314-45a2-82c2-88308722eb0f")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-06-03
+
+Description:
+Cleans and transforms data in the following ways:
+- Changes null values for month day year of birthdate to 1 
+  for calculating new column date_of_birth
+- Creates age_at_first_covid_diag column 
+- Creates gender column and uppercases all mixed/lowercase
+  versions of "male" and "female" to MALE and FEMALE; sets
+  all other to "UNKNOWN"
+- Cleans zip_code values
+- Creates race_ethnicity column
+
+Input:
+
+Output:
+================================================================================
+"""
+def pf_clean(pf_locations):
+
+    pf_df = pf_locations
+
+    """
+    Creates columns: date_of_birth, age_at_first_covid_diag  
+    Note: Sets null values of the following to 1:
+        - year_of_birth
+        - month_of_birth
+        - day_of_birth
+    """
+    with_dob_age_df = (
+        pf_df
+            .withColumn("new_year_of_birth",  
+                        F.when(pf_df.year_of_birth.isNull(),1)
+                        .otherwise(pf_df.year_of_birth))
+            .withColumn("new_month_of_birth", 
+                        F.when(pf_df.month_of_birth.isNull(),1)
+                        .otherwise(pf_df.month_of_birth))
+            .withColumn("new_day_of_birth", 
+                        F.when(pf_df.day_of_birth.isNull(),1)
+                        .otherwise(pf_df.day_of_birth))
+            .withColumn("date_of_birth", 
+                        F.concat_ws("-", F.col("new_year_of_birth"), F.col("new_month_of_birth"), F.col("new_day_of_birth")))
+            .withColumn("date_of_birth", 
+                        F.to_date("date_of_birth", format=None))
+            .withColumn("age_at_first_covid_diag", 
+                        F.floor(F.months_between("first_pos_pcr_antigen_date", "date_of_birth", roundOff=False)/12))
+            .withColumn("age_at_first_covid_diag", 
+                        F.when(F.col("age_at_first_covid_diag") >=0, F.col("age_at_first_covid_diag")).otherwise(F.lit(None)))  # insert null if age is negative
+    ).drop('new_year_of_birth','new_month_of_birth','new_day_of_birth')
+    
+
+    """
+    Creates column: gender
+    Contains standardized values from gender_concept_name so that:
+    - Uppercase all versions of "male" and "female" strings
+    - Replace non-MALE and FEMALE values with UNKNOWN 
+    """
+    cpp_gender_df = (
+        with_dob_age_df
+            .withColumn("gender",  
+                F.when(F.upper(with_dob_age_df.gender_concept_name) == "MALE", "MALE")
+                .when(F.upper(with_dob_age_df.gender_concept_name) == "FEMALE", "FEMALE")
+                .otherwise("UNKNOWN")
+            )
+    )
+
+    """
+    Creates column: race_ethnicity
+    Contains standardized values from ethnicity_concept_name and race_concept_name
+
+    In data, but currentally set to UNKNOWN
+    Barbadian
+    Dominica Islander
+    Trinidadian
+    West Indian
+    Jamaican
+    African
+    Madagascar
+    Maldivian
+    """
+    cpp_race_df = ( 
+        cpp_gender_df
+            .withColumn("race_ethnicity", 
+                F.when(F.col("ethnicity_concept_name") == 'Hispanic or Latino',     "Hispanic or Latino Any Race")
+                .when(F.col("race_concept_name").contains('Hispanic'),              "Hispanic or Latino Any Race")
+                .when(F.col("race_concept_name").contains('Black'),                 "Black or African American Non-Hispanic")
+                .when(F.col("race_concept_name") == ('African American'),           "Black or African American Non-Hispanic")                
+                .when(F.col("race_concept_name").contains('White'),                 "White Non-Hispanic")
+                .when(F.col("race_concept_name") == "Asian or Pacific Islander",    "Unknown") 
+                .when(F.col("race_concept_name").contains("Asian Indian"),          "Asian Indian")
+                .when(F.col("race_concept_name").contains('Asian'),                 "Asian Non-Hispanic")
+                .when(F.col("race_concept_name").contains('Filipino'),              "Asian Non-Hispanic")
+                .when(F.col("race_concept_name").contains('Chinese'),               "Asian Non-Hispanic")
+                .when(F.col("race_concept_name").contains('Korean'),                "Asian Non-Hispanic")
+                .when(F.col("race_concept_name").contains('Vietnamese'),            "Asian Non-Hispanic")
+                .when(F.col("race_concept_name").contains('Japanese'),              "Asian Non-Hispanic")                  
+                .when(F.col("race_concept_name").contains('Bangladeshi'),           "Asian Non-Hispanic") 
+                .when(F.col("race_concept_name").contains('Pakistani'),             "Asian Non-Hispanic")   
+                .when(F.col("race_concept_name").contains('Nepalese'),              "Asian Non-Hispanic")    
+                .when(F.col("race_concept_name").contains('Laotian'),               "Asian Non-Hispanic")     
+                .when(F.col("race_concept_name").contains('Taiwanese'),             "Asian Non-Hispanic")                                        
+                .when(F.col("race_concept_name").contains('Thai'),                  "Asian Non-Hispanic")        
+                .when(F.col("race_concept_name").contains('Sri Lankan'),            "Asian Non-Hispanic")      
+                .when(F.col("race_concept_name").contains('Burmese'),               "Asian Non-Hispanic")      
+                .when(F.col("race_concept_name").contains('Okinawan'),              "Asian Non-Hispanic")                                                            
+                .when(F.col("race_concept_name").contains('Cambodian'),             "Asian Non-Hispanic")   
+                .when(F.col("race_concept_name").contains('Bhutanese'),             "Asian Non-Hispanic")   
+                .when(F.col("race_concept_name").contains('Singaporean'),           "Asian Non-Hispanic") 
+                .when(F.col("race_concept_name").contains('Hmong'),                 "Asian Non-Hispanic")       
+                .when(F.col("race_concept_name").contains('Malaysian'),             "Asian Non-Hispanic")    
+                .when(F.col("race_concept_name").contains('Indonesian'),            "Asian Non-Hispanic")                 
+                .when(F.col("race_concept_name").contains('Pacific'),               "Native Hawaiian or Other Pacific Islander Non-Hispanic")
+                .when(F.col("race_concept_name").contains('Polynesian'),            "Native Hawaiian or Other Pacific Islander Non-Hispanic")        
+                .when(F.col("race_concept_name").contains('Native Hawaiian'),       "Native Hawaiian or Other Pacific Islander Non-Hispanic")  
+                .when(F.col("race_concept_name").contains('Micronesian'),           "Native Hawaiian or Other Pacific Islander Non-Hispanic")     
+                .when(F.col("race_concept_name").contains('Melanesian'),            "Native Hawaiian or Other Pacific Islander Non-Hispanic")       
+                # .when(F.col("race_concept_name").contains('Other'),                 "UNKNOWN")    
+                # .when(F.col("race_concept_name").contains('Multiple'),              "UNKNOWN")  
+                # .when(F.col("race_concept_name").contains('More'),                  "UNKNOWN")      
+                .otherwise("UNKNOWN")
+            )
+    )
+
+    """
+    Creates column: zip_code
+    Standardizes the values in zip:
+    1. removes leading and training blanks
+    2. truncates to first five characters
+    3. only keeps values with 5 digit characters 
+    """
+    cpp_zip_df = ( 
+        cpp_race_df
+            .withColumn("zip_code", F.trim(cpp_race_df.zip))
+            .withColumn("zip_code", F.when(F.length(F.col('zip_code')) >=  5, F.col('zip_code').substr(1,5)))
+            .withColumn("zip_code", F.when(F.col('zip_code').rlike("[0-9]{5}"), F.col('zip_code')))
+    )
+
+    return cpp_zip_df
+
+#################################################
+## Global imports and functions included below ##
+#################################################
+
+from pyspark.sql.window import Window
+from pyspark.sql import functions as F
 
 @transform_pandas(
     Output(rid="ri.vector.main.execute.9224b962-92a4-41c5-8c3b-8c726c2356e5")
@@ -328,6 +509,64 @@ def pf_covid_visits_dep():
 
   
     return pf_first_visits_df
+
+@transform_pandas(
+    Output(rid="ri.vector.main.execute.0b59927d-f314-45a2-82c2-88308722eb0f"),
+    location=Input(rid="ri.foundry.main.dataset.efac41e8-cc64-49bf-9007-d7e22a088318"),
+    manifest=Input(rid="ri.foundry.main.dataset.b1e99f7f-5dcd-4503-985a-bbb28edc8f6f"),
+    person_lds=Input(rid="ri.foundry.main.dataset.50cae11a-4afb-457d-99d4-55b4bc2cbe66"),
+    pf_sample=Input(rid="ri.vector.main.execute.86a7ebcc-e90b-4a39-a7d1-8ec1b179e61e")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-06-01
+
+Description:
+Adds in all person columns
+Gets person address info from location
+Gets treating institutions from manifest 
+
+Input:
+
+Output:
+================================================================================
+"""
+
+def pf_locations(pf_sample, location, manifest, person_lds):
+
+    # Adds patient data from person_lds
+    with_person_df = (
+        pf_sample
+        .join(person_lds.select('person_id','year_of_birth','month_of_birth','day_of_birth',
+                                  'ethnicity_concept_name','race_concept_name','gender_concept_name',
+                                  'location_id','data_partner_id'),
+              pf_sample.person_id == person_lds.person_id,
+              how = "left"
+        ).drop(person_lds.person_id)  
+    )
+    
+
+    # Adds patient location data
+    with_location_df = (
+        with_person_df.join(
+            location.select('location_id','city','state','zip','county'),
+            with_person_df.location_id == location.location_id,
+            how = "left"    
+        ).drop(location.location_id)
+    )
+
+    # Adds contributing institution data 
+    with_manifest_df = (
+        with_location_df.join(
+            manifest.select('data_partner_id','run_date','cdm_name','cdm_version','shift_date_yn','max_num_shift_days'),
+            with_location_df.data_partner_id == manifest.data_partner_id,
+            how = "left" 
+        ).drop(manifest.data_partner_id)
+
+    )
+
+    return with_manifest_df
 
 @transform_pandas(
     Output(rid="ri.vector.main.execute.86a7ebcc-e90b-4a39-a7d1-8ec1b179e61e"),
