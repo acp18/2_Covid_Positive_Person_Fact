@@ -125,6 +125,32 @@ def COVID_PATIENT_COMORBIDITIES(pf_clean, our_concept_sets, condition_occurrence
     
 
 @transform_pandas(
+    Output(rid="ri.vector.main.execute.3cf53c18-1a89-43d4-98b0-a45b6b660b1c"),
+    pf_death=Input(rid="ri.vector.main.execute.9ecdced1-c3b3-4f1a-9b20-10bb4b1701de")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-08-30
+
+Description:
+This produces a copy of the preceding node's dataset. It is used for naming
+purposes.
+
+Input:
+pf_mds:
+The preceding patient table in the code workbook.
+================================================================================
+"""
+def COVID_POS_PERSON_FACT(pf_death):
+
+    # Convert String values to numbers
+    df = pf_death
+
+    return df
+    
+
+@transform_pandas(
     Output(rid="ri.vector.main.execute.26952395-170f-4408-b142-dd4128c9001b"),
     microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905")
 )
@@ -859,6 +885,63 @@ def pf_sample(ALL_COVID_POS_PATIENTS):
 
     return ALL_COVID_POS_PATIENTS.sample(False, proportion_of_patients_to_use, 111)
     
+
+@transform_pandas(
+    Output(rid="ri.vector.main.execute.bb50e150-8cdf-4fe4-b1ee-06e4f8170475"),
+    complete_patient_table_with_derived_scores=Input(rid="ri.foundry.main.dataset.d467585c-53b3-4f10-b09e-8e86a4796a1a"),
+    pf_death=Input(rid="ri.vector.main.execute.9ecdced1-c3b3-4f1a-9b20-10bb4b1701de")
+)
+"""
+================================================================================
+Author: Elliott Fisher (elliott.fisher@duke.edu)
+Date:   2022-08-09
+
+Description:
+This transform is considered obsolete due to its use of the use of the 
+complete_patient_table_with_derived_scores. It is being kept in this code
+workbook for reference.
+
+Joins in severity scores associated with every patient in the Enclave. The 
+severity score (Severity_Type) is linked to one "critical visit"      
+
+Input:
+1.  complete_patient_table_with_derived_scores 
+    Created by the Bennet et. al. team
+    See documentation here:
+    https://unite.nih.gov/workspace/module/view/latest/ri.workshop.main.module.3ab34203-d7f3-482e-adbd-f4113bfd1a2b?id=KO-68B1026&view=focus
+
+2.  pf_death
+    Prior table in workbook
+================================================================================
+"""
+def pf_severity(pf_death, complete_patient_table_with_derived_scores):
+
+    severity_df = (
+        complete_patient_table_with_derived_scores
+        .withColumnRenamed('data_partner_id'    , 'sev_data_partner_id'     )
+        .withColumnRenamed('visit_start_date'   , 'sev_visit_start_date'    )    
+        .withColumnRenamed('visit_occurrence_id', 'sev_visit_occurrence_id' )
+        .select('person_id'                 ,
+                'Severity_Type'             ,
+                'sev_data_partner_id'       ,
+                'sev_visit_start_date'      ,
+                'sev_visit_occurrence_id'   ,                   
+                'AKI_in_hospital'           ,
+                'ECMO'                      ,
+                'Invasive_Ventilation'      ,
+                'Q_Score'                   ,
+                'BMI'                       ,
+                'Height'                    ,
+                'Weight'                    ,
+                'blood_type'                ,
+                'smoking_status'            
+            )          
+    )    
+
+    pf_severity_df = pf_death.join(severity_df, 'person_id', 'left')                   
+    
+
+    return pf_severity_df
 
 @transform_pandas(
     Output(rid="ri.vector.main.execute.c2a030cf-5f1d-47df-a3f2-97ff57139951"),
