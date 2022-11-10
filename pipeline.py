@@ -2,11 +2,11 @@ from pyspark.sql.window import Window
 from pyspark.sql import functions as F
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.84d406f4-ceb5-41ba-8635-329be026e241"),
+    Output(rid="ri.foundry.main.dataset.2c8fa57a-5237-40bf-a218-e166d0d1e000"),
     concept_set_members=Input(rid="ri.foundry.main.dataset.e670c5ad-42ca-46a2-ae55-e917e3e161b6"),
     condition_occurrence=Input(rid="ri.foundry.main.dataset.900fa2ad-87ea-4285-be30-c6b5bab60e86"),
     our_concept_sets=Input(rid="ri.foundry.main.dataset.f80a92e0-cdc4-48d9-b4b7-42e60d42d9e0"),
-    pf_clean=Input(rid="ri.vector.main.execute.a99e14c1-2c50-48c3-a2d8-a251c03f3fac")
+    pf_clean=Input(rid="ri.foundry.main.dataset.cc80faf2-44c3-436b-92aa-10451c012a06")
 )
 """
 ================================================================================
@@ -125,8 +125,8 @@ def COVID_PATIENT_COMORBIDITIES(pf_clean, our_concept_sets, condition_occurrence
     
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.492ba54f-80b4-4460-9d77-21d295b014d6"),
-    pf_mds=Input(rid="ri.vector.main.execute.a901890b-b30a-43e9-8e0c-647458be539a")
+    Output(rid="ri.foundry.main.dataset.eb277a38-7a8c-4002-9f36-7f633894b37a"),
+    pf_mds=Input(rid="ri.foundry.main.dataset.cf5227e7-e5a9-4364-acce-15670de616bd")
 )
 """
 ================================================================================
@@ -162,8 +162,8 @@ def COVID_PATIENT_SDOH(pf_mds):
     return df
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.3cf53c18-1a89-43d4-98b0-a45b6b660b1c"),
-    pf_death=Input(rid="ri.vector.main.execute.9ecdced1-c3b3-4f1a-9b20-10bb4b1701de")
+    Output(rid="ri.foundry.main.dataset.937647ef-e933-4d3d-99a5-ec49f00861a1"),
+    pf_death=Input(rid="ri.foundry.main.dataset.e5cd300f-cf0b-43dc-9e96-45dfb4b01c43")
 )
 """
 ================================================================================
@@ -188,7 +188,7 @@ def COVID_POS_PERSON_FACT(pf_death):
     
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.26952395-170f-4408-b142-dd4128c9001b"),
+    Output(rid="ri.foundry.main.dataset.6fb79565-7fee-4857-aaf4-05cdfe71557e"),
     microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905")
 )
 def explore_m_to_m(microvisit_to_macrovisit_lds):
@@ -216,7 +216,7 @@ def explore_m_to_m(microvisit_to_macrovisit_lds):
     return df
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.a517adaf-9a91-4b6c-ab22-28a537e81890"),
+    Output(rid="ri.foundry.main.dataset.1fd2a6db-f2ba-4121-8548-12eeb603bd43"),
     microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905")
 )
 def macrovisit_multi_ip(microvisit_to_macrovisit_lds):
@@ -242,7 +242,7 @@ def macrovisit_multi_ip(microvisit_to_macrovisit_lds):
     
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.d43bd982-c772-40e6-8a0e-1907374ab3e6")
+    Output(rid="ri.foundry.main.dataset.c789a713-c2a6-421d-97cd-7ecb1d508143")
 )
 """
 ================================================================================
@@ -305,8 +305,8 @@ def pf_after_covid_visits():
     
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.a99e14c1-2c50-48c3-a2d8-a251c03f3fac"),
-    pf_locations=Input(rid="ri.vector.main.execute.0b59927d-f314-45a2-82c2-88308722eb0f")
+    Output(rid="ri.foundry.main.dataset.cc80faf2-44c3-436b-92aa-10451c012a06"),
+    pf_locations=Input(rid="ri.foundry.main.dataset.17acb5d9-69d1-41be-be4b-49cfe8a3c63b")
 )
 """
 ================================================================================
@@ -458,7 +458,7 @@ from pyspark.sql.window import Window
 from pyspark.sql import functions as F
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.9224b962-92a4-41c5-8c3b-8c726c2356e5")
+    Output(rid="ri.foundry.main.dataset.75e7da9c-3af2-440c-b8c6-2adaef84817d")
 )
 """
 ================================================================================
@@ -697,9 +697,9 @@ def pf_covid_visits_dep():
     return pf_first_visits_df
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.9ecdced1-c3b3-4f1a-9b20-10bb4b1701de"),
+    Output(rid="ri.foundry.main.dataset.e5cd300f-cf0b-43dc-9e96-45dfb4b01c43"),
     death=Input(rid="ri.foundry.main.dataset.d8cc2ad4-215e-4b5d-bc80-80ffb3454875"),
-    pf_first_covid_hosp=Input(rid="ri.vector.main.execute.32beaa5c-f3f8-4335-981c-e654c9d0478b")
+    pf_first_covid_hosp=Input(rid="ri.foundry.main.dataset.586fd5b3-33ba-4aae-a4be-db83adc09601")
 )
 """
 ================================================================================
@@ -762,11 +762,11 @@ def pf_death(pf_first_covid_hosp, death):
     
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.32beaa5c-f3f8-4335-981c-e654c9d0478b"),
+    Output(rid="ri.foundry.main.dataset.586fd5b3-33ba-4aae-a4be-db83adc09601"),
     concept_set_members=Input(rid="ri.foundry.main.dataset.e670c5ad-42ca-46a2-ae55-e917e3e161b6"),
     microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905"),
     our_concept_sets=Input(rid="ri.foundry.main.dataset.f80a92e0-cdc4-48d9-b4b7-42e60d42d9e0"),
-    pf_clean=Input(rid="ri.vector.main.execute.a99e14c1-2c50-48c3-a2d8-a251c03f3fac")
+    pf_clean=Input(rid="ri.foundry.main.dataset.cc80faf2-44c3-436b-92aa-10451c012a06")
 )
 """
 ================================================================================
@@ -843,11 +843,11 @@ def pf_first_covid_hosp( microvisit_to_macrovisit_lds, our_concept_sets, concept
     return df
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.0b59927d-f314-45a2-82c2-88308722eb0f"),
+    Output(rid="ri.foundry.main.dataset.17acb5d9-69d1-41be-be4b-49cfe8a3c63b"),
     location=Input(rid="ri.foundry.main.dataset.efac41e8-cc64-49bf-9007-d7e22a088318"),
     manifest=Input(rid="ri.foundry.main.dataset.b1e99f7f-5dcd-4503-985a-bbb28edc8f6f"),
     person_lds=Input(rid="ri.foundry.main.dataset.50cae11a-4afb-457d-99d4-55b4bc2cbe66"),
-    pf_sample=Input(rid="ri.vector.main.execute.86a7ebcc-e90b-4a39-a7d1-8ec1b179e61e")
+    pf_sample=Input(rid="ri.foundry.main.dataset.198f1f7b-6940-4097-96b4-e9239bdc84e3")
 )
 """
 ================================================================================
@@ -901,7 +901,7 @@ def pf_locations(pf_sample, location, manifest, person_lds):
     return with_manifest_df
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.86a7ebcc-e90b-4a39-a7d1-8ec1b179e61e"),
+    Output(rid="ri.foundry.main.dataset.198f1f7b-6940-4097-96b4-e9239bdc84e3"),
     ALL_COVID_POS_PATIENTS=Input(rid="ri.foundry.main.dataset.d0f01e74-1ebb-46a5-b077-11864f9dd903")
 )
 """
@@ -924,9 +924,9 @@ def pf_sample(ALL_COVID_POS_PATIENTS):
     
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.bb50e150-8cdf-4fe4-b1ee-06e4f8170475"),
+    Output(rid="ri.foundry.main.dataset.be016c4a-446a-4a69-b84b-9b104fb61d47"),
     complete_patient_table_with_derived_scores=Input(rid="ri.foundry.main.dataset.d467585c-53b3-4f10-b09e-8e86a4796a1a"),
-    pf_death=Input(rid="ri.vector.main.execute.9ecdced1-c3b3-4f1a-9b20-10bb4b1701de")
+    pf_death=Input(rid="ri.foundry.main.dataset.e5cd300f-cf0b-43dc-9e96-45dfb4b01c43")
 )
 """
 ================================================================================
@@ -981,7 +981,7 @@ def pf_severity(pf_death, complete_patient_table_with_derived_scores):
     return pf_severity_df
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.c2a030cf-5f1d-47df-a3f2-97ff57139951"),
+    Output(rid="ri.foundry.main.dataset.9aa4b6a7-6a48-4921-81bf-467a31c5310b"),
     microvisit_to_macrovisit_lds=Input(rid="ri.foundry.main.dataset.5af2c604-51e0-4afa-b1ae-1e5fa2f4b905")
 )
 def successive_macrovisits(microvisit_to_macrovisit_lds):
@@ -1007,8 +1007,8 @@ def successive_macrovisits(microvisit_to_macrovisit_lds):
     
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.55d585f2-c56f-49e3-a61a-7f62ad3f14eb"),
-    COVID_POS_PERSON_FACT=Input(rid="ri.vector.main.execute.3cf53c18-1a89-43d4-98b0-a45b6b660b1c")
+    Output(rid="ri.foundry.main.dataset.8527b8c0-057d-4868-8beb-7999b083179c"),
+    COVID_POS_PERSON_FACT=Input(rid="ri.foundry.main.dataset.937647ef-e933-4d3d-99a5-ec49f00861a1")
 )
 def unique_zip_count(COVID_POS_PERSON_FACT):
 
@@ -1022,8 +1022,8 @@ def unique_zip_count(COVID_POS_PERSON_FACT):
     return df
 
 @transform_pandas(
-    Output(rid="ri.vector.main.execute.e9902478-9e87-46eb-9af4-ed9adeaf055e"),
-    pf_locations=Input(rid="ri.vector.main.execute.0b59927d-f314-45a2-82c2-88308722eb0f")
+    Output(rid="ri.foundry.main.dataset.90838755-8bb9-47be-aa26-870c56d8dba5"),
+    pf_locations=Input(rid="ri.foundry.main.dataset.17acb5d9-69d1-41be-be4b-49cfe8a3c63b")
 )
 def unique_zip_count_dirty(pf_locations):
     return pf_locations.groupBy('zip').count()    
