@@ -11,6 +11,8 @@ This workbook add information about the patients to COVID-19 test information
 
 **Main analytic dataset produced**: COVID_POS_PERSON_FACT
 
+Code Workbook originally created by Elliott Fisher: elliott.fisher@duke.edu
+
 
 
 
