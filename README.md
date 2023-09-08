@@ -1,4 +1,7 @@
 # 2_Covid_Positive_Person_Fact
+## Project: N3C Case-Crossover Study
+## Analyst: Alyssa Platt (alyssa.platt@duke.edu)
+
 This workbook add information about the patients to COVID-19 test information
 
 **Purpose**:                       Link other clinical characteristics to covid positive patients (e.g. locations, comorbidities, SDOH, etc…) 
